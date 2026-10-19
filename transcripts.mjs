@@ -226,7 +226,13 @@ const HOUSEKEEPING = {
   'relocated': 'The session moved to another folder.',
   'continued-in': 'This conversation continues in another file.',
   'system': 'A note from Claude Code itself, not from you or Claude.',
+  'api-request': 'One call to the model: the settings sent and which pieces made up the context this turn.',
+  'api-request-blob': 'One piece of the context sent to the model, saved once and reused by later calls.',
+  'api-request-shape': 'The system prompt and tool list sent to the model, saved once.',
 };
+
+// Three or more grey lines in a row fold into one row you can open.
+const FOLD_MIN = 3;
 
 function truncBlock(text, cls) {
   text = String(text ?? '');
@@ -394,12 +400,28 @@ function renderSession(file, page) {
       : `<div class="block k-${kind}"><span class="label">${LABELS[kind]}</span></div>`;
 
     const when = o.timestamp ? `<span class="when">${esc(fmtDate(Date.parse(o.timestamp)))}</span>` : '';
-    cards.push(`<article id="L${e.line}" class="card c-${kind}${o.isSidechain ? ' sidechain' : ''}${kind === 'other' || kind === 'auto' ? ' housekeeping' : ''}">
+    cards.push({ line: e.line, type: o.type || '?', grey: kind === 'other', html: `<article id="L${e.line}" class="card c-${kind}${o.isSidechain ? ' sidechain' : ''}${kind === 'other' || kind === 'auto' ? ' housekeeping' : ''}">
 <header><a class="lineno" href="#L${e.line}">Line ${e.line}</a><span class="type">type: ${esc(o.type || '?')}</span>${when}${flags}</header>
 ${note ? `<p class="note">${esc(note)}</p>` : ''}
 ${labelHtml}
 <footer>${chain}<details class="raw" data-line="${e.line}"><summary>Show raw JSON</summary><pre class="rawpre">Loading…</pre></details></footer>
-</article>`);
+</article>` });
+  }
+
+  // Fold runs of grey lines: "12 housekeeping lines (lines 40–51): 6 api-request, 6 api-request-blob".
+  const folded = [];
+  for (let i = 0; i < cards.length;) {
+    let j = i;
+    while (j < cards.length && cards[j].grey) j++;
+    if (j - i >= FOLD_MIN) {
+      const run = cards.slice(i, j);
+      const counts = new Map();
+      for (const c of run) counts.set(c.type, (counts.get(c.type) || 0) + 1);
+      const what = [...counts].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${esc(k)}`).join(', ');
+      folded.push(`<details class="hkrun"><summary>${run.length} housekeeping lines in a row (lines ${run[0].line}–${run[run.length - 1].line}): ${what}</summary>${run.map((c) => c.html).join('\n')}</details>`);
+      i = j;
+    } else if (j > i) { folded.push(...cards.slice(i, j).map((c) => c.html)); i = j; }
+    else { folded.push(cards[i].html); i++; }
   }
 
   const pager = pages > 1 ? `<nav class="pager">Page ${page} of ${pages} (${PAGE_SIZE} lines per page): ${Array.from({ length: pages }, (_, i) => i + 1 === page ? `<b>${i + 1}</b>` : `<a href="/session?f=${encodeURIComponent(rel)}&page=${i + 1}">${i + 1}</a>`).join(' ')}</nav>` : '';
@@ -433,7 +455,7 @@ ${subList}
 ${extraList}
 <p class="controls"><label><input type="checkbox" id="hidehk"> Hide housekeeping lines (grey ones)</label></p>
 ${pager}
-<main class="cards">${cards.join('\n')}</main>
+<main class="cards">${folded.join('\n')}</main>
 ${pager}
 <footer class="resume">${resume}</footer>
 <script>
@@ -456,6 +478,9 @@ const hk = document.getElementById('hidehk');
 hk.checked = localStorage.getItem('hidehk') === '1';
 const apply = () => { document.body.classList.toggle('hidehk', hk.checked); localStorage.setItem('hidehk', hk.checked ? '1' : '0'); };
 hk.addEventListener('change', apply); apply();
+// A link to a line inside a folded run opens the run.
+const openTarget = () => { const el = location.hash && document.getElementById(location.hash.slice(1)); const run = el && el.closest('details.hkrun'); if (run) { run.open = true; el.scrollIntoView(); } };
+window.addEventListener('hashchange', openTarget); openTarget();
 </script>`;
   return layout(isSub ? 'Sub-agent transcript' : 'Session transcript', body);
 }
@@ -547,7 +572,10 @@ code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; word-break: br
 .card.c-auto { border-left-color: var(--auto); }
 .card.housekeeping { padding: 6px 14px; margin: 6px 0; font-size: 16px; background: #fcfcfd; } .card.housekeeping .note { margin: 2px 0; }
 .card.sidechain { margin-left: 48px; border-style: dashed; border-left-style: solid; background: #fafaff; }
-body.hidehk .card.housekeeping { display: none; }
+body.hidehk .card.housekeeping, body.hidehk .hkrun { display: none; }
+.hkrun { margin: 6px 0; border: 1px dashed #d1d5db; border-left: 6px solid var(--other); border-radius: 10px; background: #fcfcfd; }
+.hkrun > summary { cursor: pointer; padding: 6px 14px; font-size: 16px; color: var(--other); }
+.hkrun[open] > summary { border-bottom: 1px dashed #d1d5db; } .hkrun > .card { margin: 6px 10px; }
 .block { margin: 8px 0; } .label { display: inline-block; font-weight: 700; font-size: 16px; padding: 2px 12px; border-radius: 999px; margin-bottom: 6px; }
 .k-you .label, .chip.k-you { color: var(--you); background: var(--you-bg); } .k-claude .label, .chip.k-claude { color: var(--claude); background: var(--claude-bg); }
 .k-thinking .label, .chip.k-thinking { color: var(--think); background: var(--think-bg); } .k-call .label, .chip.k-call { color: var(--call); background: var(--call-bg); }
