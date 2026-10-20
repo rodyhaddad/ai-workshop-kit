@@ -34,6 +34,8 @@ git pull
 | `transcripts.mjs` | The transcript viewer. It shows your own Claude Code sessions in your browser. |
 | `demo-inbox/` | 15 invented emails for a made-up coffee roastery in Tbilisi. Use them when you need an inbox that isn't yours. |
 
+The prompt-injection exercise has its own branch, `r4-prompt-injection`. See the end of this page.
+
 ## The transcript viewer
 
 From your workshop folder:
@@ -51,3 +53,16 @@ It only runs on your laptop. It reads your sessions from `~/.claude/projects`. I
 Mtatsminda Roasters is a fictional café and coffee roastery. James Beridze, the owner, is invented too. So is every person, business, invoice and amount in these emails.
 
 One of them, `14-suspicious-bank-email.md`, is a fake phishing email on purpose. See if Claude spots it.
+
+## The prompt-injection sandbox
+
+Five invented supplier documents. One of them hides instructions for Claude. It lives on its own branch so it never lands in the folder you work in all week.
+
+Get a fresh copy for the exercise:
+
+```
+git clone -b r4-prompt-injection https://github.com/rodyhaddad/ai-workshop-kit.git sandbox-test
+cd sandbox-test
+```
+
+Only use it for that exercise, and only on this copy. Want to start over? Delete `sandbox-test` and clone it again.
