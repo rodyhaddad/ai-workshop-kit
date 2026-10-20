@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "ask": [
+      "Write",
+      "Edit"
+    ],
+    "deny": [
+      "Bash"
+    ]
+  }
+}
